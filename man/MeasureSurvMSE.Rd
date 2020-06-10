@@ -34,6 +34,8 @@ msr("surv.mse")
 
 \seealso{
 Other survival measures: 
+\code{\link{MeasureRegrBrier}},
+\code{\link{MeasureRegrLoglossSE}},
 \code{\link{MeasureSurvBeggC}},
 \code{\link{MeasureSurvChamblessAUC}},
 \code{\link{MeasureSurvGonenC}},

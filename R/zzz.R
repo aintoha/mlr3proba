@@ -14,6 +14,7 @@
 register_mlr3 = function() {
 
   x = utils::getFromNamespace("mlr_reflections", ns = "mlr3")
+  x$learner_predict_types$regr$distr = "distr"
 
   if (!grepl("surv", x$task_types[, "type"])) {
     x = utils::getFromNamespace("mlr_reflections", ns = "mlr3")
@@ -77,7 +78,12 @@ register_mlr3 = function() {
 
   x$add("dens.logloss", MeasureDensLogloss)
 
-  # x$add("regr.logloss", MeasureRegrLogloss)
+  x$add("regr.logloss", MeasureRegrLogloss)
+  x$add("regr.logloss_se", MeasureRegrLoglossSE)
+  x$add("regr.brier", MeasureRegrBrier)
+  x$add("regr.brier_se", MeasureRegrBrierSE)
+  x$add("regr.intlogloss", MeasureRegrIntLogloss)
+  x$add("regr.intlogloss_se", MeasureRegrIntLoglossSE)
 
   x$add("surv.graf", MeasureSurvGraf)
   x$add("surv.grafSE", MeasureSurvGrafSE)

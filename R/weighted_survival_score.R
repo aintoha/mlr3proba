@@ -1,14 +1,24 @@
-weighted_survival_score = function(truth, distribution, times, loss, ...) {
+prob_score = function(truth, distribution, times, loss, weight = TRUE, ...) {
   # get unique observation times (death and censoring) and order accordingly
 
-  obs_times = truth[, 1]
-  unique_times = sort(unique(obs_times))
-  if (length(times) != 0) {
-    times = unique(times[times >= min(unique_times) & times <= max(unique_times)])
-    if (length(times) == 0) {
-      stop(sprintf("Times are all outside the observed range, [%s,%s].", min(obs_times), max(obs_times)))
+  if (class(truth) == "Surv") {
+    obs_times = truth[, 1]
+    unique_times = sort(unique(obs_times))
+    if (length(times) != 0) {
+      times = unique(times[times >= min(unique_times) & times <= max(unique_times)])
+      if (length(times) == 0) {
+        stop(sprintf("Times are all outside the observed range, [%s,%s]. Using observed range.",
+                        min(obs_times), max(obs_times)))
+      }
+      unique_times = unique(unique_times[findInterval(times, unique_times, TRUE, TRUE)])
     }
-    unique_times = unique(unique_times[findInterval(times, unique_times, TRUE, TRUE)])
+  } else {
+    obs_times = truth
+    if (length(times) == 0) {
+      unique_times = sort(runif(1000, min = min(obs_times[1]), max = (obs_times[2])))
+    } else {
+      unique_times = sort(unique(times))
+    }
   }
 
   nr_obs = length(obs_times)
@@ -22,33 +32,37 @@ weighted_survival_score = function(truth, distribution, times, loss, ...) {
   # calculated unweighted loss
   score = loss(alive = alive, distribution = distribution, unique_times = unique_times, ...)
 
-  # To account for censoring the score is weighted according to each individuals contribution to
-  # censoring.
-  # G(t*) = L(S, t*)I(t <= t*, died = 1)(1/C(t)) + L(S, t*)I(t > t*)(1/C(t*))
-  # where C(t) is Kaplan-Meier estimator for censoring distribution
+  if (!weight) {
+    return(score)
+  } else {
+    # To account for censoring the score is weighted according to each individuals contribution to
+    # censoring.
+    # G(t*) = L(S, t*)I(t <= t*, died = 1)(1/C(t)) + L(S, t*)I(t > t*)(1/C(t*))
+    # where C(t) is Kaplan-Meier estimator for censoring distribution
 
-  # First get matrix of observed death/censor times and matrix of all unique times
-  obs_times_mat = matrix(obs_times, nrow = nr_obs, ncol = nc_times, byrow = F)
-  unique_times_mat = matrix(unique_times, nrow = nr_obs, ncol = nc_times, byrow = T)
+    # First get matrix of observed death/censor times and matrix of all unique times
+    obs_times_mat = matrix(obs_times, nrow = nr_obs, ncol = nc_times, byrow = F)
+    unique_times_mat = matrix(unique_times, nrow = nr_obs, ncol = nc_times, byrow = T)
 
-  # For a given patient's true death/censor time, t, if t <= t* then they are weighted with C(t).
-  # If t > t* then weighted with C(t*)
-  weights_mat = matrix(0, nrow = nr_obs, ncol = nc_times)
-  weights_mat = weights_mat + (alive * unique_times_mat) + ((1 - alive) * obs_times_mat)
+    # For a given patient's true death/censor time, t, if t <= t* then they are weighted with C(t).
+    # If t > t* then weighted with C(t*)
+    weights_mat = matrix(0, nrow = nr_obs, ncol = nc_times)
+    weights_mat = weights_mat + (alive * unique_times_mat) + ((1 - alive) * obs_times_mat)
 
-  # Find the Kaplan-Meier estimate of the censoring distribution, save as distr6 object
-  cens_dist = survival::survfit(Surv(time, 1 - event) ~ 1, data = data.frame(time = truth[, 1], event = truth[, 2]))
-  cens_dist = distr6::WeightedDiscrete$new(data.frame(x = cens_dist$time, cdf = 1 - cens_dist$surv),
-    decorators = "ExoticStatistics")
+    # Find the Kaplan-Meier estimate of the censoring distribution, save as distr6 object
+    cens_dist = survival::survfit(Surv(time, 1 - event) ~ 1, data = data.frame(time = truth[, 1], event = truth[, 2]))
+    cens_dist = distr6::WeightedDiscrete$new(data.frame(x = cens_dist$time, cdf = 1 - cens_dist$surv),
+                                             decorators = "ExoticStatistics")
 
-  # Find the estimated censoring probability at each of the respective times derived above
-  weights_mat = apply(weights_mat, 1, function(x) cens_dist$survival(x))
+    # Find the estimated censoring probability at each of the respective times derived above
+    weights_mat = apply(weights_mat, 1, function(x) cens_dist$survival(x))
 
-  weighted_score = as.matrix(score / t(weights_mat))
+    weighted_score = as.matrix(score / t(weights_mat))
 
-  # Censored individuals contribute zero to the score.
-  weighted_score[truth[, 2] == 0, ][alive[truth[, 2] == 0, ] == 0] = 0
+    # Censored individuals contribute zero to the score.
+    weighted_score[truth[, 2] == 0, ][alive[truth[, 2] == 0, ] == 0] = 0
 
-  colnames(weighted_score) = unique_times
-  weighted_score
+    colnames(weighted_score) = unique_times
+    return(weighted_score)
+  }
 }

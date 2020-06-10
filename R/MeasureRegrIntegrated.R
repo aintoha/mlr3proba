@@ -1,7 +1,7 @@
-#' @title Abstract Class for Integrated Survival Measures
+#' @title Abstract Class for Integrated Regression Measures
 #' @description This is an abstract class that should not be constructed directly.
 #' @template param_integrated
-#' @template param_times
+#' @template param_points
 #' @template param_method
 #' @template param_id
 #' @template param_range
@@ -10,12 +10,12 @@
 #' @template param_predict_type
 #' @template param_measure_properties
 #' @export
-MeasureSurvIntegrated = R6Class("MeasureSurvIntegrated",
-  inherit = MeasureSurv,
+MeasureRegrIntegrated = R6Class("MeasureRegrIntegrated",
+  inherit = MeasureRegr,
   public = list(
     #' @description This is an abstract class that should not be constructed directly.
-    initialize = function(integrated = TRUE, times, method = 2, id, range, minimize, packages, predict_type, properties) {
-      if (class(self)[[1]] == "MeasureSurvIntegrated") {
+    initialize = function(integrated = TRUE, points, method = 2, id, range, minimize, packages, predict_type, properties) {
+      if (class(self)[[1]] == "MeasureRegrIntegrated") {
         stop("This is an abstract class that should not be constructed directly.")
       }
 
@@ -32,21 +32,22 @@ MeasureSurvIntegrated = R6Class("MeasureSurvIntegrated",
       private$.integrated = integrated
 
       if (!integrated) {
-        if (missing(times)) {
-          stop("For the non-integrated score, only a single time-point can be returned.")
+        if (missing(points)) {
+          stop("For the non-integrated score, only a single point can be returned.")
         } else {
-          assertNumeric(times,
+          assertNumeric(points,
             len = 1,
-            .var.name = "For the non-integrated score, only a single time-point can be returned.")
+            .var.name = "For the non-integrated score, only a single point can be returned."
+          )
         }
-        private$.times = times
+        private$.points = points
       } else {
         assertNumeric(method, 1, 2, any.missing = FALSE, all.missing = FALSE)
         private$.method = method
-        if (!missing(times)) {
-          assertNumeric(times)
-          private$.times = times
-          if (length(times) == 1) {
+        if (!missing(points)) {
+          assertNumeric(points)
+          private$.points = points
+          if (length(points) == 1) {
             private$.integrated = FALSE
           }
         }
@@ -63,31 +64,32 @@ MeasureSurvIntegrated = R6Class("MeasureSurvIntegrated",
         return(private$.integrated)
       } else {
         assertFlag(integrated)
-        if (!integrated & length(self$times) > 1) {
+        if (!integrated & length(self$points) > 1) {
           stop(sprintf(
-            "For the non-integrated score, only a single time-point can be returned. Currently self$times = %s",
-            paste0("c(", paste0(self$times, collapse = ", "), ").")))
+            "For the non-integrated score, only a single point can be returned.
+            Currently self$points = %s",
+            paste0("c(", paste0(self$points, collapse = ", "), ").")))
         }
         private$.integrated = integrated
       }
     },
 
-    #' @field times `(numeric())`
-    #' Returns the times at which the measure should be evaluated at, or integrated over.
+    #' @field points `(numeric())`
+    #' Returns the points at which the measure should be evaluated at, or integrated over.
     #' Settable.
-    times = function(times) {
-      if (!missing(times)) {
+    points = function(points) {
+      if (!missing(points)) {
         if (!self$integrated) {
-          assertNumeric(times,
+          assertNumeric(points,
             len = 1,
-            .var.name = "For the non-integrated score, only a single time-point can
+            .var.name = "For the non-integrated score, only a single point can
                         be returned.")
         } else {
-          assertNumeric(times)
+          assertNumeric(points)
         }
-        private$.times = times
+        private$.points = points
       } else {
-        return(private$.times)
+        return(private$.points)
       }
     },
 
@@ -106,7 +108,7 @@ MeasureSurvIntegrated = R6Class("MeasureSurvIntegrated",
 
   private = list(
     .integrated = logical(),
-    .times = numeric(),
+    .points = numeric(),
     .method = integer()
   )
 )

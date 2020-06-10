@@ -43,6 +43,7 @@ MeasureSurvIntLogloss = R6::R6Class("MeasureSurvIntLogloss",
 
       assertNumeric(eps)
       private$.eps = eps
+      invisible(self)
     }
   ),
 
